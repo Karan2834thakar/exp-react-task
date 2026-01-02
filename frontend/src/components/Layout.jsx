@@ -1,6 +1,6 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, FileText, QrCode, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FileText, QrCode, LogOut, Menu, X, Users } from 'lucide-react';
 import { useState } from 'react';
 
 const Layout = () => {
@@ -18,6 +18,7 @@ const Layout = () => {
         { path: '/create-pass', label: 'Create Pass', icon: FileText, roles: ['Requestor', 'Admin'] },
         { path: '/my-requests', label: 'My Requests', icon: FileText, roles: ['Requestor', 'Admin'] },
         { path: '/gate-scanner', label: 'Gate Scanner', icon: QrCode, roles: ['Security', 'Admin'] },
+        { path: '/user-management', label: 'User Management', icon: Users, roles: ['Admin'] },
     ];
 
     const visibleMenuItems = menuItems.filter(item => item.roles.includes(user?.role));

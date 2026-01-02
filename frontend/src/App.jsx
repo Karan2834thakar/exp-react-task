@@ -8,6 +8,7 @@ import CreatePass from './pages/CreatePass';
 import MyRequests from './pages/MyRequests';
 import PassDetails from './pages/PassDetails';
 import GateScanner from './pages/GateScanner';
+import UserManagement from './pages/UserManagement';
 
 function AppRoutes() {
     const { isAuthenticated } = useAuth();
@@ -43,6 +44,14 @@ function AppRoutes() {
                     element={
                         <ProtectedRoute allowedRoles={['Security', 'Admin']}>
                             <GateScanner />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="user-management"
+                    element={
+                        <ProtectedRoute allowedRoles={['Admin']}>
+                            <UserManagement />
                         </ProtectedRoute>
                     }
                 />
