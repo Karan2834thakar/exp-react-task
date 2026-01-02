@@ -48,7 +48,10 @@ const createPassSchema = Joi.object({
     purpose: Joi.string().required(),
     validFrom: Joi.date().iso().required(),
     validTo: Joi.date().iso().greater(Joi.ref('validFrom')).required(),
-    remarks: Joi.string().optional(),
+    remarks: Joi.string().required().messages({
+        'any.required': 'Remarks are mandatory for audit purposes',
+        'string.empty': 'Remarks cannot be empty'
+    }),
     dispatchEmail: Joi.string().email().optional().allow(null, ''),
 
     // Employee pass fields
@@ -69,9 +72,10 @@ const createPassSchema = Joi.object({
         then: Joi.array().items(Joi.object({
             name: Joi.string().required(),
             phone: Joi.string().required(),
-            company: Joi.string().optional(),
-            idType: Joi.string().valid('Aadhar', 'PAN', 'DrivingLicense', 'Passport', 'VoterID', 'Other').optional(),
-            idNumber: Joi.string().optional()
+            company: Joi.string().optional().allow('', null),
+            idType: Joi.string().valid('Aadhar', 'PAN', 'DrivingLicense', 'Passport', 'VoterID', 'Other').optional().allow('', null),
+            idNumber: Joi.string().optional().allow('', null),
+            idProofImage: Joi.string().optional().allow(null, '')
         })).min(1).required(),
         otherwise: Joi.forbidden()
     }),

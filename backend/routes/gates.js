@@ -89,12 +89,28 @@ router.post('/checkin',
             throw new Error('Pass not found');
         }
 
-        if (pass.status !== 'Approved' && pass.status !== 'Active') {
+        const allowedStatuses = ['Approved', 'Active', 'CheckedOut'];
+        if (!allowedStatuses.includes(pass.status)) {
             res.status(400);
-            throw new Error('Pass is not approved');
+            throw new Error(`Pass is not in a valid state for entry (Status: ${pass.status})`);
         }
 
-        // Check if already checked in
+        // Enforce strict time window check
+        const now = new Date();
+        const validFrom = new Date(pass.validFrom);
+        const validTo = new Date(pass.validTo);
+
+        if (now < validFrom) {
+            res.status(400);
+            throw new Error(`Pass is not valid yet (Starts at: ${validFrom.toLocaleString()})`);
+        }
+
+        if (now > validTo) {
+            res.status(400);
+            throw new Error(`Pass has expired (Expired at: ${validTo.toLocaleString()})`);
+        }
+
+        // Check if already checked in (active session)
         const existingCheckIn = await GateEvent.findOne({
             passId: pass._id,
             eventType: 'CheckIn',

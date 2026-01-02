@@ -164,6 +164,9 @@ const visitorPassSchema = new mongoose.Schema({
         },
         idNumber: {
             type: String
+        },
+        idProofImage: {
+            type: String // Base64 or path to uploaded document
         }
     }],
     numPeople: {

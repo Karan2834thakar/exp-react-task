@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { passService } from '../services/passService';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trash2, PlusCircle } from 'lucide-react';
 
 const CreatePass = () => {
     const { user } = useAuth();
@@ -25,6 +25,7 @@ const CreatePass = () => {
         visitorCompany: '',
         visitorIdType: 'Aadhar',
         visitorIdNumber: '',
+        visitorIdProofImage: '',
         // Employee fields
         employeeId: '',
         passType: 'OnDuty',
@@ -33,11 +34,40 @@ const CreatePass = () => {
         vehicleType: 'Car',
         driverName: '',
         driverPhone: '',
-        // Material fields
-        itemName: '',
-        quantity: 1,
-        returnable: false
+        // Material fields (Array)
+        materials: [{ itemName: '', quantity: 1, returnable: false }]
     });
+
+    const handleIdProofUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, visitorIdProofImage: reader.result }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const addMaterialItem = () => {
+        setFormData(prev => ({
+            ...prev,
+            materials: [...prev.materials, { itemName: '', quantity: 1, returnable: false }]
+        }));
+    };
+
+    const removeMaterialItem = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            materials: prev.materials.filter((_, i) => i !== index)
+        }));
+    };
+
+    const handleMaterialChange = (index, field, value) => {
+        const updatedMaterials = [...formData.materials];
+        updatedMaterials[index][field] = value;
+        setFormData(prev => ({ ...prev, materials: updatedMaterials }));
+    };
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -56,7 +86,7 @@ const CreatePass = () => {
         const toDate = new Date(formData.validTo);
         const now = new Date();
 
-        if (fromDate < now && formData.type !== 'Employee') { // Allow backdating for some employee cases if needed, but generally avoid
+        if (fromDate < now && formData.type !== 'Employee') {
             setError('Start date cannot be in the past.');
             return;
         }
@@ -71,21 +101,14 @@ const CreatePass = () => {
             return;
         }
 
-        // Email validation if provided
-        if (formData.dispatchEmail && !formData.dispatchEmail.includes('@')) {
-            setError('Please enter a valid email for QR delivery.');
+        if (!formData.remarks.trim()) {
+            setError('Remarks are mandatory.');
             return;
         }
 
-        // Phone validation
         const phoneRegex = /^\d{10}$/;
         if (formData.type === 'Visitor' && !phoneRegex.test(formData.visitorPhone)) {
             setError('Please enter a valid 10-digit phone number for the visitor.');
-            return;
-        }
-
-        if (formData.type === 'Vehicle' && !phoneRegex.test(formData.driverPhone)) {
-            setError('Please enter a valid 10-digit phone number for the driver.');
             return;
         }
 
@@ -103,14 +126,14 @@ const CreatePass = () => {
                 dispatchEmail: formData.dispatchEmail
             };
 
-            // Add type-specific fields
             if (formData.type === 'Visitor') {
                 passData.persons = [{
                     name: formData.visitorName,
                     phone: formData.visitorPhone,
-                    company: formData.visitorCompany,
-                    idType: formData.visitorIdType,
-                    idNumber: formData.visitorIdNumber
+                    company: formData.visitorCompany || undefined,
+                    idType: formData.visitorIdType || undefined,
+                    idNumber: formData.visitorIdNumber || undefined,
+                    idProofImage: formData.visitorIdProofImage || undefined
                 }];
                 passData.numPeople = 1;
             } else if (formData.type === 'Employee') {
@@ -122,11 +145,11 @@ const CreatePass = () => {
                 passData.driverName = formData.driverName;
                 passData.driverPhone = formData.driverPhone;
             } else if (formData.type === 'Material') {
-                passData.materials = [{
-                    itemName: formData.itemName,
-                    quantity: parseInt(formData.quantity),
-                    returnable: formData.returnable
-                }];
+                passData.materials = formData.materials.map(m => ({
+                    itemName: m.itemName,
+                    quantity: parseInt(m.quantity),
+                    returnable: m.returnable
+                }));
             }
 
             await passService.createPass(passData);
@@ -156,24 +179,14 @@ const CreatePass = () => {
             )}
 
             <form onSubmit={handleSubmit} className="card space-y-6">
-                {/* Pass Type */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Pass Type</label>
-                    <select name="type" value={formData.type} onChange={handleChange} className="input">
-                        <option value="Visitor">Visitor Pass</option>
-                        <option value="Employee">Employee Pass</option>
-                        <option value="Vehicle">Vehicle Pass</option>
-                        <option value="Material">Material Pass</option>
-                    </select>
-                </div>
-
-                {/* Common Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Site</label>
-                        <select name="siteId" value={formData.siteId} onChange={handleChange} className="input">
-                            <option value="SITE001">Main Office</option>
-                            <option value="SITE002">Warehouse</option>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Pass Type</label>
+                        <select name="type" value={formData.type} onChange={handleChange} className="input">
+                            <option value="Visitor">Visitor Pass</option>
+                            <option value="Employee">Employee Pass</option>
+                            <option value="Vehicle">Vehicle Pass</option>
+                            <option value="Material">Material Pass</option>
                         </select>
                     </div>
                     <div>
@@ -202,32 +215,18 @@ const CreatePass = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Valid From *</label>
-                        <input
-                            type="datetime-local"
-                            name="validFrom"
-                            value={formData.validFrom}
-                            onChange={handleChange}
-                            required
-                            className="input"
-                        />
+                        <input type="datetime-local" name="validFrom" value={formData.validFrom} onChange={handleChange} required className="input" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Valid To *</label>
-                        <input
-                            type="datetime-local"
-                            name="validTo"
-                            value={formData.validTo}
-                            onChange={handleChange}
-                            required
-                            className="input"
-                        />
+                        <input type="datetime-local" name="validTo" value={formData.validTo} onChange={handleChange} required className="input" />
                     </div>
                 </div>
 
-                {/* Type-Specific Fields */}
+                {/* Visitor Section */}
                 {formData.type === 'Visitor' && (
-                    <div className="border-t pt-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Visitor Details</h3>
+                    <div className="border-t pt-6 space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-900">Visitor Details</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
@@ -244,116 +243,116 @@ const CreatePass = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">ID Type</label>
                                 <select name="visitorIdType" value={formData.visitorIdType} onChange={handleChange} className="input">
-                                    <option value="Aadhar">Aadhar</option>
-                                    <option value="PAN">PAN</option>
+                                    <option value="Aadhar">Aadhar Card</option>
+                                    <option value="PAN">PAN Card</option>
                                     <option value="DrivingLicense">Driving License</option>
                                     <option value="Passport">Passport</option>
                                 </select>
                             </div>
                             <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">ID Number</label>
-                                <input type="text" name="visitorIdNumber" value={formData.visitorIdNumber} onChange={handleChange} className="input" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Upload ID Proof (Optional)</label>
+                                <input type="file" accept="image/*" onChange={handleIdProofUpload} className="input p-1" />
                             </div>
                         </div>
                     </div>
                 )}
 
+                {/* Employee Section */}
                 {formData.type === 'Employee' && (
-                    <div className="border-t pt-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Employee Details</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID *</label>
-                                <input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} required className="input" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Pass Type *</label>
-                                <select name="passType" value={formData.passType} onChange={handleChange} required className="input">
-                                    <option value="OnDuty">On Duty</option>
-                                    <option value="ShortExit">Short Exit</option>
-                                    <option value="LateEntry">Late Entry</option>
-                                </select>
-                            </div>
+                    <div className="border-t pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID *</label>
+                            <input type="text" name="employeeId" value={formData.employeeId} onChange={handleChange} required className="input" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Pass Action *</label>
+                            <select name="passType" value={formData.passType} onChange={handleChange} required className="input">
+                                <option value="OnDuty">On Duty</option>
+                                <option value="ShortExit">Short Exit</option>
+                                <option value="LateEntry">Late Entry</option>
+                            </select>
                         </div>
                     </div>
                 )}
 
+                {/* Vehicle Section */}
                 {formData.type === 'Vehicle' && (
-                    <div className="border-t pt-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Vehicle Details</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number *</label>
-                                <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleChange} required className="input" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Type *</label>
-                                <select name="vehicleType" value={formData.vehicleType} onChange={handleChange} required className="input">
-                                    <option value="Car">Car</option>
-                                    <option value="Bike">Bike</option>
-                                    <option value="Truck">Truck</option>
-                                    <option value="Van">Van</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name *</label>
-                                <input type="text" name="driverName" value={formData.driverName} onChange={handleChange} required className="input" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Driver Phone *</label>
-                                <input type="tel" name="driverPhone" value={formData.driverPhone} onChange={handleChange} required className="input" />
-                            </div>
+                    <div className="border-t pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Number *</label>
+                            <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleChange} required className="input" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name *</label>
+                            <input type="text" name="driverName" value={formData.driverName} onChange={handleChange} required className="input" />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Driver Phone *</label>
+                            <input type="tel" name="driverPhone" value={formData.driverPhone} onChange={handleChange} required className="input" />
                         </div>
                     </div>
                 )}
 
+                {/* Material Section (Multi-Item) */}
                 {formData.type === 'Material' && (
                     <div className="border-t pt-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Material Details</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
-                                <input type="text" name="itemName" value={formData.itemName} onChange={handleChange} required className="input" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                                <input type="number" name="quantity" value={formData.quantity} onChange={handleChange} required min="1" className="input" />
-                            </div>
-                            <div className="md:col-span-2">
-                                <label className="flex items-center">
-                                    <input type="checkbox" name="returnable" checked={formData.returnable} onChange={handleChange} className="mr-2" />
-                                    <span className="text-sm font-medium text-gray-700">Returnable Item</span>
-                                </label>
-                            </div>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">Material List</h3>
+                            <button type="button" onClick={addMaterialItem} className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 font-medium">
+                                <PlusCircle className="h-4 w-4" /> Add Item
+                            </button>
+                        </div>
+                        <div className="space-y-3">
+                            {formData.materials.map((m, idx) => (
+                                <div key={idx} className="flex flex-wrap md:flex-nowrap gap-3 items-end bg-gray-50 p-3 rounded-lg border border-gray-100 relative">
+                                    <div className="w-full md:flex-1">
+                                        <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1">Item Name</label>
+                                        <input type="text" value={m.itemName} onChange={(e) => handleMaterialChange(idx, 'itemName', e.target.value)} required className="input text-sm bg-white" placeholder="Device, Package, etc." />
+                                    </div>
+                                    <div className="w-24">
+                                        <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1">Qty</label>
+                                        <input type="number" value={m.quantity} onChange={(e) => handleMaterialChange(idx, 'quantity', e.target.value)} required min="1" className="input text-sm bg-white" />
+                                    </div>
+                                    <div className="flex items-center h-10 px-2 group">
+                                        <label className="flex items-center cursor-pointer">
+                                            <input type="checkbox" checked={m.returnable} onChange={(e) => handleMaterialChange(idx, 'returnable', e.target.checked)} className="mr-2 rounded text-primary-600" />
+                                            <span className="text-xs text-gray-600">Returnable</span>
+                                        </label>
+                                    </div>
+                                    {formData.materials.length > 1 && (
+                                        <button type="button" onClick={() => removeMaterialItem(idx)} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
-                    <textarea name="remarks" value={formData.remarks} onChange={handleChange} rows="2" className="input" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Remarks *</label>
+                    <textarea
+                        name="remarks"
+                        value={formData.remarks}
+                        onChange={handleChange}
+                        rows="2"
+                        required
+                        className="input"
+                        placeholder="Please provide any additional context or remarks"
+                    />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email for QR Delivery (Optional)</label>
-                    <input
-                        type="email"
-                        name="dispatchEmail"
-                        value={formData.dispatchEmail}
-                        onChange={handleChange}
-                        className="input"
-                        placeholder="Where should we send the QR code?"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">If left blank, it will be sent to your account email.</p>
+                    <input type="email" name="dispatchEmail" value={formData.dispatchEmail} onChange={handleChange} className="input" placeholder="Guest's email address" />
                 </div>
 
-                <div className="flex gap-4">
-                    <button type="submit" disabled={loading} className="btn btn-primary flex-1">
-                        {loading ? 'Creating...' : 'Create Pass'}
+                <div className="flex gap-4 pt-4">
+                    <button type="submit" disabled={loading} className="btn btn-primary flex-1 py-3 text-lg">
+                        {loading ? 'Processing...' : 'Submit Request'}
                     </button>
-                    <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
-                        Cancel
-                    </button>
+                    <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary py-3 px-8">Cancel</button>
                 </div>
             </form>
         </div>

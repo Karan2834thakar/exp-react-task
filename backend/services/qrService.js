@@ -77,11 +77,21 @@ const validateQR = (qrDataString) => {
             };
         }
 
-        // Check if pass is approved
-        if (payload.status !== 'Approved' && payload.status !== 'Active') {
+        // Check if pass is approved or active/recently checked out (for re-entry)
+        const allowedStatuses = ['Approved', 'Active', 'CheckedOut'];
+        if (!allowedStatuses.includes(payload.status)) {
             return {
                 valid: false,
-                error: `Pass is not approved (Status: ${payload.status})`
+                error: `Pass is not in a valid state for entry (Status: ${payload.status})`
+            };
+        }
+
+        // Check time window
+        const validFrom = new Date(payload.validFrom);
+        if (now < validFrom) {
+            return {
+                valid: false,
+                error: `Pass is not valid yet (Starts at: ${validFrom.toLocaleString()})`
             };
         }
 

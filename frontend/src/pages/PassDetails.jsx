@@ -152,11 +152,22 @@ const PassDetails = () => {
                                 <div className="bg-gray-100 p-4 rounded-lg">
                                     <User className="h-8 w-8 text-gray-400" />
                                 </div>
-                                <div className="space-y-1">
+                                <div className="space-y-1 flex-1">
                                     <p className="text-lg font-bold text-gray-900">{person.name}</p>
                                     <p className="text-sm text-gray-600">📞 {person.phone}</p>
                                     {person.company && <p className="text-sm text-gray-600">🏢 {person.company}</p>}
                                     {person.idType && <p className="text-xs text-gray-500">{person.idType}: {person.idNumber}</p>}
+                                    {person.idProofImage && (
+                                        <div className="mt-3">
+                                            <p className="text-[10px] uppercase font-bold text-gray-400 mb-1">Identity Proof</p>
+                                            <img
+                                                src={person.idProofImage}
+                                                alt="ID Proof"
+                                                className="max-w-full h-auto rounded border border-gray-200 cursor-zoom-in hover:opacity-90 transition-opacity"
+                                                onClick={() => window.open(person.idProofImage, '_blank')}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
